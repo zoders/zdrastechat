@@ -57,17 +57,28 @@ export default function ChatWindow({
 
   return (
     <div className="flex-1 flex flex-col h-full">
-      {/* Фиксированный header */}
+      {/* Header */}
       <div className="h-14 border-b border-gray-800 flex items-center px-4 bg-gray-900 z-10">
+        
+        {/* Кнопка на мобильных (Назад) */}
         <button
           onClick={toggleSidebar}
-          className="mr-4 text-gray-400 hover:text-white text-2xl"
+          className="md:hidden mr-4 text-3xl text-gray-400 hover:text-white"
+        >
+          ←
+        </button>
+
+        {/* Кнопка сворачивания на десктопе */}
+        <button
+          onClick={toggleSidebar}
+          className="hidden md:flex items-center justify-center w-9 h-9 text-3xl text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl"
         >
           {isSidebarOpen ? '←' : '→'}
         </button>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-3 ml-2">
           <div className="w-8 h-8 bg-blue-500 rounded-2xl flex items-center justify-center text-sm font-bold">@</div>
-          <div className="font-semibold">{otherName}</div>
+          <div className="font-semibold">@{otherName}</div>
         </div>
       </div>
 
