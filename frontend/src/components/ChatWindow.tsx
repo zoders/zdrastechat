@@ -23,11 +23,13 @@ export default function ChatWindow({
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isHistoryStartVisible, setIsHistoryStartVisible] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const oldestMessageTimestampRef = useRef<string | null>(null);
   const shouldScrollToBottomRef = useRef(false);
+  const scrollBehaviorRef = useRef<ScrollBehavior>('auto');
   const isLoadingOlderRef = useRef(false);
 
   const currentUserId = localStorage.getItem('user_id');
@@ -60,18 +62,24 @@ export default function ChatWindow({
     oldestMessageTimestampRef.current = nextMessages[0]?.timestamp ?? null;
   };
 
-  const loadLatestMessages = async () => {
+  const loadLatestMessages = async (scrollBehavior: ScrollBehavior = 'auto') => {
     setIsInitialLoading(true);
+    setIsHistoryStartVisible(false);
     const { data } = await api.get<MessagesPage>(`/chats/${chatId}/messages/?limit=30`);
     setMessages(data.results);
     setHasMore(data.has_more);
     rememberOldestMessage(data.results);
+    scrollBehaviorRef.current = scrollBehavior;
     shouldScrollToBottomRef.current = true;
     setIsInitialLoading(false);
   };
 
   const loadOlderMessages = async () => {
-    if (!hasMore || isLoadingOlderRef.current || !oldestMessageTimestampRef.current) return;
+    if (!hasMore) {
+      if (messages.length > 0) setIsHistoryStartVisible(true);
+      return;
+    }
+    if (isLoadingOlderRef.current || !oldestMessageTimestampRef.current) return;
 
     const container = messagesContainerRef.current;
     const previousScrollHeight = container?.scrollHeight ?? 0;
@@ -90,6 +98,7 @@ export default function ChatWindow({
         return nextMessages;
       });
       setHasMore(data.has_more);
+      setIsHistoryStartVisible(!data.has_more);
 
       requestAnimationFrame(() => {
         if (!container) return;
@@ -110,6 +119,7 @@ export default function ChatWindow({
   useEffect(() => {
     setMessages([]);
     setHasMore(false);
+    setIsHistoryStartVisible(false);
     oldestMessageTimestampRef.current = null;
     loadLatestMessages();
 
@@ -126,6 +136,7 @@ export default function ChatWindow({
         setMessages((prev) => {
           const nextMessages = mergeMessages(prev, [data.message], 'append');
           rememberOldestMessage(nextMessages);
+          scrollBehaviorRef.current = 'smooth';
           shouldScrollToBottomRef.current = data.message.sender_id === currentUserId || isNearBottom();
           return nextMessages;
         });
@@ -154,7 +165,7 @@ export default function ChatWindow({
       socket.send(JSON.stringify({ text }));
     } else {
       await api.post(`/chats/${chatId}/send/`, { text });
-      await loadLatestMessages();
+      await loadLatestMessages('smooth');
     }
 
     setNewMessage('');
@@ -163,7 +174,7 @@ export default function ChatWindow({
   useEffect(() => {
     if (!shouldScrollToBottomRef.current) return;
     shouldScrollToBottomRef.current = false;
-    requestAnimationFrame(() => scrollToBottom('smooth'));
+    requestAnimationFrame(() => scrollToBottom(scrollBehaviorRef.current));
   }, [messages]);
 
   return (
@@ -183,7 +194,7 @@ export default function ChatWindow({
         {isLoadingOlder && (
           <div className={chatWindow.status}>Загрузка истории...</div>
         )}
-        {!hasMore && messages.length > 0 && (
+        {isHistoryStartVisible && messages.length > 0 && (
           <div className={chatWindow.historyStart}>Начало переписки</div>
         )}
         {isInitialLoading && messages.length === 0 && (
