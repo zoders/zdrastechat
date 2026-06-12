@@ -15,18 +15,98 @@ export default function ChatWindow({
 }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const oldestMessageTimestampRef = useRef<string | null>(null);
+  const shouldScrollToBottomRef = useRef(false);
+  const isLoadingOlderRef = useRef(false);
 
   const currentUserId = localStorage.getItem('user_id');
 
-  const loadMessages = async () => {
-    const { data } = await api.get(`/chats/${chatId}/messages/`);
-    setMessages(data);
+  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  const isNearBottom = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+  };
+
+  const mergeMessages = (currentMessages: any[], incomingMessages: any[], mode: 'replace' | 'prepend' | 'append') => {
+    const byId = new Map<string, any>();
+
+    const orderedMessages =
+      mode === 'prepend'
+        ? [...incomingMessages, ...currentMessages]
+        : mode === 'append'
+          ? [...currentMessages, ...incomingMessages]
+          : incomingMessages;
+
+    orderedMessages.forEach((message) => byId.set(message.id, message));
+    return Array.from(byId.values());
+  };
+
+  const rememberOldestMessage = (nextMessages: any[]) => {
+    oldestMessageTimestampRef.current = nextMessages[0]?.timestamp ?? null;
+  };
+
+  const loadLatestMessages = async () => {
+    setIsInitialLoading(true);
+    const { data } = await api.get(`/chats/${chatId}/messages/?limit=30`);
+    setMessages(data.results);
+    setHasMore(data.has_more);
+    rememberOldestMessage(data.results);
+    shouldScrollToBottomRef.current = true;
+    setIsInitialLoading(false);
+  };
+
+  const loadOlderMessages = async () => {
+    if (!hasMore || isLoadingOlderRef.current || !oldestMessageTimestampRef.current) return;
+
+    const container = messagesContainerRef.current;
+    const previousScrollHeight = container?.scrollHeight ?? 0;
+    const previousScrollTop = container?.scrollTop ?? 0;
+
+    isLoadingOlderRef.current = true;
+    setIsLoadingOlder(true);
+
+    try {
+      const before = encodeURIComponent(oldestMessageTimestampRef.current);
+      const { data } = await api.get(`/chats/${chatId}/messages/?limit=30&before=${before}`);
+
+      setMessages((prev) => {
+        const nextMessages = mergeMessages(prev, data.results, 'prepend');
+        rememberOldestMessage(nextMessages);
+        return nextMessages;
+      });
+      setHasMore(data.has_more);
+
+      requestAnimationFrame(() => {
+        if (!container) return;
+        container.scrollTop = container.scrollHeight - previousScrollHeight + previousScrollTop;
+      });
+    } finally {
+      isLoadingOlderRef.current = false;
+      setIsLoadingOlder(false);
+    }
+  };
+
+  const handleMessagesScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container || container.scrollTop > 80) return;
+    loadOlderMessages();
   };
 
   useEffect(() => {
-    loadMessages();
+    setMessages([]);
+    setHasMore(false);
+    oldestMessageTimestampRef.current = null;
+    loadLatestMessages();
 
     if (USE_WEBSOCKET) {
       const token = localStorage.getItem('access_token');
@@ -39,8 +119,10 @@ export default function ChatWindow({
         if (data.type !== 'message') return;
 
         setMessages((prev) => {
-          if (prev.some((msg) => msg.id === data.message.id)) return prev;
-          return [...prev, data.message];
+          const nextMessages = mergeMessages(prev, [data.message], 'append');
+          rememberOldestMessage(nextMessages);
+          shouldScrollToBottomRef.current = data.message.sender_id === currentUserId || isNearBottom();
+          return nextMessages;
         });
       };
       socket.onclose = () => {
@@ -53,7 +135,7 @@ export default function ChatWindow({
         socket.close();
       };
     } else {
-      const interval = setInterval(loadMessages, 2000);
+      const interval = setInterval(loadLatestMessages, 2000);
       return () => clearInterval(interval);
     }
   }, [chatId]);
@@ -67,14 +149,16 @@ export default function ChatWindow({
       socket.send(JSON.stringify({ text }));
     } else {
       await api.post(`/chats/${chatId}/send/`, { text });
-      await loadMessages();
+      await loadLatestMessages();
     }
 
     setNewMessage('');
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!shouldScrollToBottomRef.current) return;
+    shouldScrollToBottomRef.current = false;
+    requestAnimationFrame(() => scrollToBottom('smooth'));
   }, [messages]);
 
   return (
@@ -105,7 +189,20 @@ export default function ChatWindow({
       </div>
 
       {/* Сообщения */}
-      <div className="flex-1 overflow-auto p-4 space-y-6 bg-gray-950">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        className="flex-1 overflow-auto p-4 space-y-6 bg-gray-950"
+      >
+        {isLoadingOlder && (
+          <div className="text-center text-xs text-gray-500">Загрузка истории...</div>
+        )}
+        {!hasMore && messages.length > 0 && (
+          <div className="text-center text-xs text-gray-600">Начало переписки</div>
+        )}
+        {isInitialLoading && messages.length === 0 && (
+          <div className="text-center text-sm text-gray-500 mt-10">Загрузка сообщений...</div>
+        )}
         {messages.map((msg) => (
           <div
             key={msg.id}
