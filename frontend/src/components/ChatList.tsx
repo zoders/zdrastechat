@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { WS_URL, USE_WEBSOCKET } from '../config';
-
-interface Chat {
-  id: string;
-  participants: string[];
-  last_message?: any;
-}
+import IconButton from './ui/IconButton';
+import TextInput from './ui/TextInput';
+import { chatList } from '../styles/ui';
+import type { Chat, FoundUser } from '../types/chat';
 
 export default function ChatList({
   onChatSelect,
@@ -17,12 +15,12 @@ export default function ChatList({
 }) {
   const [chats, setChats] = useState<Chat[]>([]);
   const [searchUsername, setSearchUsername] = useState('');
-  const [foundUser, setFoundUser] = useState<any>(null);
+  const [foundUser, setFoundUser] = useState<FoundUser | null>(null);
 
   const currentUsername = localStorage.getItem('username') || '';
 
   const loadMyChats = async () => {
-    const { data } = await api.get('/chats/');
+      const { data } = await api.get<Chat[]>('/chats/');
     setChats(data);
   };
 
@@ -50,9 +48,9 @@ export default function ChatList({
   const searchUser = async () => {
     if (!searchUsername.trim()) return;
     try {
-      const { data } = await api.get(`/users/search/?username=${searchUsername}`);
+      const { data } = await api.get<FoundUser[]>(`/users/search/?username=${searchUsername}`);
       setFoundUser(data.length > 0 ? data[0] : null);
-    } catch (e) {
+    } catch {
       setFoundUser(null);
     }
   };
@@ -68,7 +66,7 @@ export default function ChatList({
       onChatSelect(data.id, otherName);
       setFoundUser(null);
       setSearchUsername('');
-    } catch (e) {
+    } catch {
       alert('Не удалось создать чат');
     }
   };
@@ -78,51 +76,51 @@ export default function ChatList({
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="p-3 border-b border-gray-800">
-        <div className="flex gap-2">
-          <input
+    <div className={chatList.root}>
+      <div className={chatList.searchPanel}>
+        <div className={chatList.searchRow}>
+          <TextInput
             type="text"
             placeholder="Точный ник..."
             value={searchUsername}
             onChange={(e) => setSearchUsername(e.target.value)}
-            className="min-w-0 flex-1 bg-gray-800 text-white px-4 rounded-2xl focus:outline-none"
+            className="flex-1"
           />
-          <button
+          <IconButton
             onClick={searchUser}
-            className="tap-target inline-flex items-center justify-center shrink-0 bg-blue-600 hover:bg-blue-700 px-4 rounded-2xl text-sm"
-            aria-label="Найти пользователя"
+            label="Найти пользователя"
             title="Найти"
+            variant="primary"
+            className="px-4 text-sm"
           >
             🔎
-          </button>
+          </IconButton>
         </div>
 
         {foundUser && (
-          <div className="mt-3 p-3 bg-gray-800 rounded-2xl flex justify-between items-center gap-3">
+          <div className={chatList.foundUser}>
             <span className="font-medium truncate">@{foundUser.username}</span>
-            <button
+            <IconButton
               onClick={startChat}
-              className="tap-target inline-flex items-center justify-center shrink-0 bg-green-600 hover:bg-green-700 px-4 rounded-2xl text-sm"
-              aria-label="Начать чат"
+              label="Начать чат"
               title="Начать чат"
+              variant="success"
+              className="px-4 text-sm"
             >
               ➕
-            </button>
+            </IconButton>
           </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-auto overscroll-contain p-2.5 space-y-2">
+      <div className={chatList.list}>
         {chats.map((chat) => {
           const otherName = getOtherParticipant(chat.participants);
           return (
             <div
               key={chat.id}
               onClick={() => onChatSelect(chat.id, otherName)}
-              className={`min-h-16 p-3.5 rounded-2xl cursor-pointer transition-all ${
-                selectedChatId === chat.id ? 'bg-blue-600' : 'hover:bg-gray-800'
-              }`}
+              className={chatList.item(selectedChatId === chat.id)}
             >
               <div className="font-semibold truncate">@{otherName}</div>
               {chat.last_message && (

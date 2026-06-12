@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 import { WS_URL, USE_WEBSOCKET } from '../config';
+import ChatHeader from './chat/ChatHeader';
+import MessageBubble from './chat/MessageBubble';
+import MessageComposer from './chat/MessageComposer';
+import { chatWindow } from '../styles/ui';
+import type { Message, MessagesPage } from '../types/chat';
 
 export default function ChatWindow({
   chatId,
@@ -13,7 +18,7 @@ export default function ChatWindow({
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }) {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -37,8 +42,8 @@ export default function ChatWindow({
     return container.scrollHeight - container.scrollTop - container.clientHeight < 120;
   };
 
-  const mergeMessages = (currentMessages: any[], incomingMessages: any[], mode: 'replace' | 'prepend' | 'append') => {
-    const byId = new Map<string, any>();
+  const mergeMessages = (currentMessages: Message[], incomingMessages: Message[], mode: 'replace' | 'prepend' | 'append') => {
+    const byId = new Map<string, Message>();
 
     const orderedMessages =
       mode === 'prepend'
@@ -51,13 +56,13 @@ export default function ChatWindow({
     return Array.from(byId.values());
   };
 
-  const rememberOldestMessage = (nextMessages: any[]) => {
+  const rememberOldestMessage = (nextMessages: Message[]) => {
     oldestMessageTimestampRef.current = nextMessages[0]?.timestamp ?? null;
   };
 
   const loadLatestMessages = async () => {
     setIsInitialLoading(true);
-    const { data } = await api.get(`/chats/${chatId}/messages/?limit=30`);
+    const { data } = await api.get<MessagesPage>(`/chats/${chatId}/messages/?limit=30`);
     setMessages(data.results);
     setHasMore(data.has_more);
     rememberOldestMessage(data.results);
@@ -77,7 +82,7 @@ export default function ChatWindow({
 
     try {
       const before = encodeURIComponent(oldestMessageTimestampRef.current);
-      const { data } = await api.get(`/chats/${chatId}/messages/?limit=30&before=${before}`);
+      const { data } = await api.get<MessagesPage>(`/chats/${chatId}/messages/?limit=30&before=${before}`);
 
       setMessages((prev) => {
         const nextMessages = mergeMessages(prev, data.results, 'prepend');
@@ -162,90 +167,43 @@ export default function ChatWindow({
   }, [messages]);
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0">
-      {/* Header */}
-      <div className="mobile-safe-top min-h-14 border-b border-gray-800 flex items-center px-3 bg-gray-900 z-10">
-        
-        {/* Кнопка на мобильных (Назад) */}
-        <button
-          onClick={toggleSidebar}
-          className="tap-target inline-flex items-center justify-center md:hidden mr-2 text-xl text-gray-200 hover:text-white hover:bg-gray-800 rounded-2xl"
-          aria-label="Открыть список чатов"
-          title="Чаты"
-        >
-          💬
-        </button>
-
-        {/* Кнопка сворачивания на десктопе */}
-        <button
-          onClick={toggleSidebar}
-          className="hidden md:flex tap-target items-center justify-center text-lg text-gray-300 hover:text-white hover:bg-gray-800 rounded-2xl"
-          aria-label={isSidebarOpen ? 'Скрыть список чатов' : 'Показать список чатов'}
-          title={isSidebarOpen ? 'Скрыть список чатов' : 'Показать список чатов'}
-        >
-          {isSidebarOpen ? '📕' : '📖'}
-        </button>
-
-        <div className="min-w-0 flex items-center gap-3 ml-2">
-          <div className="shrink-0 w-9 h-9 bg-blue-500 rounded-2xl flex items-center justify-center text-base">👤</div>
-          <div className="font-semibold truncate">@{otherName}</div>
-        </div>
-      </div>
+    <div className={chatWindow.root}>
+      <ChatHeader
+        otherName={otherName}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={toggleSidebar}
+      />
 
       {/* Сообщения */}
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 min-h-0 overflow-auto overscroll-contain p-3 sm:p-4 space-y-4 sm:space-y-6 bg-gray-950"
+        className={chatWindow.messages}
       >
         {isLoadingOlder && (
-          <div className="text-center text-xs text-gray-500">Загрузка истории...</div>
+          <div className={chatWindow.status}>Загрузка истории...</div>
         )}
         {!hasMore && messages.length > 0 && (
-          <div className="text-center text-xs text-gray-600">Начало переписки</div>
+          <div className={chatWindow.historyStart}>Начало переписки</div>
         )}
         {isInitialLoading && messages.length === 0 && (
-          <div className="text-center text-sm text-gray-500 mt-10">Загрузка сообщений...</div>
+          <div className={chatWindow.initialLoading}>Загрузка сообщений...</div>
         )}
         {messages.map((msg) => (
-          <div
+          <MessageBubble
             key={msg.id}
-            className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`chat-bubble ${
-                msg.sender_id === currentUserId ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'
-              }`}
-            >
-              <div>{msg.text}</div>
-              <div className="text-[10px] opacity-70 mt-1 text-right">
-                {new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-              </div>
-            </div>
-          </div>
+            message={msg}
+            isOwn={msg.sender_id === currentUserId}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Поле ввода */}
-      <div className="mobile-safe-bottom p-3 sm:p-4 border-t border-gray-800 flex gap-2 sm:gap-3 bg-gray-900">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="Сообщение..."
-          className="min-w-0 flex-1 bg-gray-800 text-white px-4 sm:px-6 rounded-3xl focus:outline-none"
-        />
-        <button
-          onClick={sendMessage}
-          className="tap-target inline-flex items-center justify-center shrink-0 bg-blue-600 hover:bg-blue-700 px-4 sm:px-6 rounded-3xl font-medium transition"
-          aria-label="Отправить сообщение"
-          title="Отправить"
-        >
-          📤
-        </button>
-      </div>
+      <MessageComposer
+        value={newMessage}
+        onChange={setNewMessage}
+        onSend={sendMessage}
+      />
     </div>
   );
 }

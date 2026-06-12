@@ -1,31 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import ChatList from '../components/ChatList';
 import ChatWindow from '../components/ChatWindow';
 import { useNavigate } from 'react-router-dom';
+import IconButton from '../components/ui/IconButton';
+import useAppViewport from '../hooks/useAppViewport';
+import { chatLayout } from '../styles/ui';
 
 export default function ChatLayout() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [selectedOtherName, setSelectedOtherName] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const { isMobile } = useAppViewport();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const updateViewport = () => {
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
-      setIsMobile(window.matchMedia('(max-width: 767px)').matches);
-    };
-
-    updateViewport();
-    window.addEventListener('resize', updateViewport);
-    window.visualViewport?.addEventListener('resize', updateViewport);
-
-    return () => {
-      window.removeEventListener('resize', updateViewport);
-      window.visualViewport?.removeEventListener('resize', updateViewport);
-    };
-  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -40,25 +26,20 @@ export default function ChatLayout() {
   };
 
   return (
-    <div className="app-shell flex bg-gray-950 text-white overflow-hidden">
+    <div className={chatLayout.shell}>
       {/* Список чатов */}
-      <div
-        className={`border-r border-gray-800 flex flex-col transition-all duration-300
-          ${isSidebarOpen 
-            ? 'w-[86vw] max-w-80 md:w-80'
-            : 'w-0 md:w-80 overflow-hidden'}
-          md:relative fixed inset-y-0 left-0 z-50 bg-gray-900 md:bg-transparent`}
-      >
-        <div className="mobile-safe-top p-3 border-b border-gray-800 flex items-center justify-between gap-3 bg-gray-900">
+      <div className={chatLayout.sidebar(isSidebarOpen)}>
+        <div className={chatLayout.sidebarHeader}>
           <h1 className="text-xl font-bold text-blue-400 truncate">ZdrasteChat</h1>
-          <button
+          <IconButton
             onClick={handleLogout}
-            className="tap-target inline-flex items-center justify-center shrink-0 text-sm px-3 bg-gray-800 hover:bg-gray-700 rounded-2xl"
-            aria-label="Выйти"
+            label="Выйти"
             title="Выйти"
+            variant="subtle"
+            className="text-sm px-3"
           >
             🚪
-          </button>
+          </IconButton>
         </div>
 
         <ChatList 
@@ -68,7 +49,7 @@ export default function ChatLayout() {
       </div>
 
       {/* Окно чата */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
+      <div className={chatLayout.main}>
         {selectedChatId ? (
           <ChatWindow 
             chatId={selectedChatId} 
@@ -77,16 +58,18 @@ export default function ChatLayout() {
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500 flex-col px-6 text-center">
+          <div className={chatLayout.empty}>
             <p className="text-xl">Выберите чат</p>
             <p className="text-sm text-gray-600 mt-2">или начните новый</p>
             {isMobile && (
-              <button
+              <IconButton
                 onClick={() => setIsSidebarOpen(true)}
-                className="tap-target inline-flex items-center justify-center mt-5 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl"
+                label="Открыть список чатов"
+                variant="primary"
+                className="mt-5 px-5"
               >
                 💬 Чаты
-              </button>
+              </IconButton>
             )}
           </div>
         )}
@@ -95,7 +78,7 @@ export default function ChatLayout() {
       {/* Затемнение на мобильных */}
       {isSidebarOpen && isMobile && (
         <div 
-          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          className={chatLayout.mobileOverlay}
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
