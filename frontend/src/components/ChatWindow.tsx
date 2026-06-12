@@ -162,29 +162,33 @@ export default function ChatWindow({
   }, [messages]);
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="h-14 border-b border-gray-800 flex items-center px-4 bg-gray-900 z-10">
+      <div className="mobile-safe-top min-h-14 border-b border-gray-800 flex items-center px-3 bg-gray-900 z-10">
         
         {/* Кнопка на мобильных (Назад) */}
         <button
           onClick={toggleSidebar}
-          className="md:hidden mr-4 text-3xl text-gray-400 hover:text-white"
+          className="tap-target inline-flex items-center justify-center md:hidden mr-2 text-xl text-gray-200 hover:text-white hover:bg-gray-800 rounded-2xl"
+          aria-label="Открыть список чатов"
+          title="Чаты"
         >
-          ←
+          💬
         </button>
 
         {/* Кнопка сворачивания на десктопе */}
         <button
           onClick={toggleSidebar}
-          className="hidden md:flex items-center justify-center w-9 h-9 text-3xl text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl"
+          className="hidden md:flex tap-target items-center justify-center text-lg text-gray-300 hover:text-white hover:bg-gray-800 rounded-2xl"
+          aria-label={isSidebarOpen ? 'Скрыть список чатов' : 'Показать список чатов'}
+          title={isSidebarOpen ? 'Скрыть список чатов' : 'Показать список чатов'}
         >
-          {isSidebarOpen ? '←' : '→'}
+          {isSidebarOpen ? '📕' : '📖'}
         </button>
 
-        <div className="flex items-center gap-3 ml-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-2xl flex items-center justify-center text-sm font-bold">@</div>
-          <div className="font-semibold">@{otherName}</div>
+        <div className="min-w-0 flex items-center gap-3 ml-2">
+          <div className="shrink-0 w-9 h-9 bg-blue-500 rounded-2xl flex items-center justify-center text-base">👤</div>
+          <div className="font-semibold truncate">@{otherName}</div>
         </div>
       </div>
 
@@ -192,7 +196,7 @@ export default function ChatWindow({
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 overflow-auto p-4 space-y-6 bg-gray-950"
+        className="flex-1 min-h-0 overflow-auto overscroll-contain p-3 sm:p-4 space-y-4 sm:space-y-6 bg-gray-950"
       >
         {isLoadingOlder && (
           <div className="text-center text-xs text-gray-500">Загрузка истории...</div>
@@ -209,7 +213,7 @@ export default function ChatWindow({
             className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`chat-bubble max-w-xs px-4 py-3 rounded-3xl ${
+              className={`chat-bubble ${
                 msg.sender_id === currentUserId ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'
               }`}
             >
@@ -224,20 +228,22 @@ export default function ChatWindow({
       </div>
 
       {/* Поле ввода */}
-      <div className="p-4 border-t border-gray-800 flex gap-3 bg-gray-900">
+      <div className="mobile-safe-bottom p-3 sm:p-4 border-t border-gray-800 flex gap-2 sm:gap-3 bg-gray-900">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
           placeholder="Сообщение..."
-          className="flex-1 bg-gray-800 text-white px-6 py-4 rounded-3xl focus:outline-none"
+          className="min-w-0 flex-1 bg-gray-800 text-white px-4 sm:px-6 rounded-3xl focus:outline-none"
         />
         <button
           onClick={sendMessage}
-          className="bg-blue-600 hover:bg-blue-700 px-8 rounded-3xl font-medium transition"
+          className="tap-target inline-flex items-center justify-center shrink-0 bg-blue-600 hover:bg-blue-700 px-4 sm:px-6 rounded-3xl font-medium transition"
+          aria-label="Отправить сообщение"
+          title="Отправить"
         >
-          →
+          📤
         </button>
       </div>
     </div>
