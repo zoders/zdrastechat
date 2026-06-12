@@ -27,6 +27,8 @@ export default function ChatList({
   };
 
   useEffect(() => {
+    loadMyChats();
+
     if (USE_WEBSOCKET) {
       const token = localStorage.getItem('access_token');
       const socket = new WebSocket(`${WS_URL}/notifications/?token=${token}`);
@@ -40,7 +42,6 @@ export default function ChatList({
 
       return () => socket.close();
     } else {
-      loadMyChats();
       const interval = setInterval(loadMyChats, 3000);
       return () => clearInterval(interval);
     }

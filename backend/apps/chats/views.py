@@ -63,7 +63,7 @@ class SendMessageView(generics.CreateAPIView):
         chat_id = self.kwargs["chat_id"]
         chat = get_object_or_404(Chat, id=chat_id, participants=self.request.user)
 
-        message = serializer.save(chat=chat, sender=self.request.user)
+        message = serializer.save(chat=chat, sender=self.request.user, encrypted_text="")
         message.set_text(self.request.data.get("text", ""))
         message.save()
 

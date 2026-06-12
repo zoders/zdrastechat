@@ -16,6 +16,7 @@ export default function ChatWindow({
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
   const currentUserId = localStorage.getItem('user_id');
 
@@ -30,15 +31,27 @@ export default function ChatWindow({
     if (USE_WEBSOCKET) {
       const token = localStorage.getItem('access_token');
       const socket = new WebSocket(`${WS_URL}/chat/${chatId}/?token=${token}`);
+      socketRef.current = socket;
 
       socket.onopen = () => console.log(`🟢 WebSocket чата ${chatId}`);
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        setMessages((prev) => [...prev, data]);
-      };
-      socket.onclose = () => console.log(`🔴 WebSocket чата ${chatId} отключён`);
+        if (data.type !== 'message') return;
 
-      return () => socket.close();
+        setMessages((prev) => {
+          if (prev.some((msg) => msg.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+      };
+      socket.onclose = () => {
+        if (socketRef.current === socket) socketRef.current = null;
+        console.log(`🔴 WebSocket чата ${chatId} отключён`);
+      };
+
+      return () => {
+        socketRef.current = null;
+        socket.close();
+      };
     } else {
       const interval = setInterval(loadMessages, 2000);
       return () => clearInterval(interval);
@@ -46,8 +59,17 @@ export default function ChatWindow({
   }, [chatId]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim()) return;
-    await api.post(`/chats/${chatId}/send/`, { text: newMessage });
+    const text = newMessage.trim();
+    if (!text) return;
+
+    const socket = socketRef.current;
+    if (USE_WEBSOCKET && socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ text }));
+    } else {
+      await api.post(`/chats/${chatId}/send/`, { text });
+      await loadMessages();
+    }
+
     setNewMessage('');
   };
 
