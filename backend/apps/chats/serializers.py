@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Chat, Message
+from apps.users.serializers import UserSerializer
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -21,10 +22,11 @@ class MessageSerializer(serializers.ModelSerializer):
 class ChatSerializer(serializers.ModelSerializer):
     participants = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
+    other_user = serializers.SerializerMethodField()
 
     class Meta:
         model = Chat
-        fields = ["id", "participants", "last_message"]
+        fields = ["id", "participants", "last_message", "other_user"]
 
     def get_participants(self, obj):
         """Работает и с моделью Chat, и с dict (при создании)"""
@@ -46,3 +48,14 @@ class ChatSerializer(serializers.ModelSerializer):
             return None
         last = obj.messages.last()
         return MessageSerializer(last).data if last else None
+
+    def get_other_user(self, obj):
+        if isinstance(obj, dict):
+            return None
+
+        current_user = self.context.get('current_user')
+        if not current_user:
+            return None
+
+        other = obj.participants.exclude(id=current_user.id).first()
+        return UserSerializer(other, context=self.context).data if other else None

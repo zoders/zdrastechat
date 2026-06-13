@@ -10,11 +10,13 @@ import type { Message, MessagesPage } from '../types/chat';
 export default function ChatWindow({
   chatId,
   otherName,
+  otherAvatarUrl,
   isSidebarOpen,
   toggleSidebar,
 }: {
   chatId: string;
   otherName: string;
+  otherAvatarUrl: string | null;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
 }) {
@@ -181,6 +183,7 @@ export default function ChatWindow({
     <div className={chatWindow.root}>
       <ChatHeader
         otherName={otherName}
+        otherAvatarUrl={otherAvatarUrl}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
       />

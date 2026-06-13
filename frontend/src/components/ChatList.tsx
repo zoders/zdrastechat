@@ -3,6 +3,7 @@ import api from '../api/axios';
 import { WS_URL, USE_WEBSOCKET } from '../config';
 import IconButton from './ui/IconButton';
 import TextInput from './ui/TextInput';
+import Avatar from './ui/Avatar';
 import { chatList } from '../styles/ui';
 import type { Chat, FoundUser } from '../types/chat';
 
@@ -10,7 +11,7 @@ export default function ChatList({
   onChatSelect,
   selectedChatId,
 }: {
-  onChatSelect: (chatId: string, otherName: string) => void;
+  onChatSelect: (chatId: string, otherName: string, otherAvatarUrl: string | null) => void;
   selectedChatId: string | null;
 }) {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -20,7 +21,7 @@ export default function ChatList({
   const currentUsername = localStorage.getItem('username') || '';
 
   const loadMyChats = async () => {
-      const { data } = await api.get<Chat[]>('/chats/');
+    const { data } = await api.get<Chat[]>('/chats/');
     setChats(data);
   };
 
@@ -63,7 +64,7 @@ export default function ChatList({
       });
       loadMyChats();
       const otherName = foundUser.username;
-      onChatSelect(data.id, otherName);
+      onChatSelect(data.id, otherName, foundUser.avatar_url);
       setFoundUser(null);
       setSearchUsername('');
     } catch {
@@ -99,6 +100,7 @@ export default function ChatList({
 
         {foundUser && (
           <div className={chatList.foundUser}>
+            <Avatar src={foundUser.avatar_url} label={`@${foundUser.username}`} />
             <span className="font-medium truncate">@{foundUser.username}</span>
             <IconButton
               onClick={startChat}
@@ -115,19 +117,23 @@ export default function ChatList({
 
       <div className={chatList.list}>
         {chats.map((chat) => {
-          const otherName = getOtherParticipant(chat.participants);
+          const otherName = chat.other_user?.username ?? getOtherParticipant(chat.participants);
+          const otherAvatarUrl = chat.other_user?.avatar_url ?? null;
           return (
             <div
               key={chat.id}
-              onClick={() => onChatSelect(chat.id, otherName)}
+              onClick={() => onChatSelect(chat.id, otherName, otherAvatarUrl)}
               className={chatList.item(selectedChatId === chat.id)}
             >
-              <div className="font-semibold truncate">@{otherName}</div>
-              {chat.last_message && (
-                <div className="text-xs text-gray-400 mt-1 truncate">
-                  {chat.last_message.text}
-                </div>
-              )}
+              <Avatar src={otherAvatarUrl} label={`@${otherName}`} />
+              <div className={chatList.itemBody}>
+                <div className="font-semibold truncate">@{otherName}</div>
+                {chat.last_message && (
+                  <div className="text-xs text-gray-400 mt-1 truncate">
+                    {chat.last_message.text}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

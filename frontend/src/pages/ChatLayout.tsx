@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ChatList from '../components/ChatList';
 import ChatWindow from '../components/ChatWindow';
 import { useNavigate } from 'react-router-dom';
 import IconButton from '../components/ui/IconButton';
+import AvatarPicker from '../components/user/AvatarPicker';
+import { getCurrentUser } from '../api/users';
 import useAppViewport from '../hooks/useAppViewport';
 import { chatLayout } from '../styles/ui';
+import type { UserProfile } from '../types/user';
 
 export default function ChatLayout() {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [selectedOtherName, setSelectedOtherName] = useState<string>('');
+  const [selectedOtherAvatarUrl, setSelectedOtherAvatarUrl] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const { isMobile } = useAppViewport();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getCurrentUser().then(setCurrentUser).catch(() => setCurrentUser(null));
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -19,9 +28,10 @@ export default function ChatLayout() {
     navigate('/login');
   };
 
-  const handleChatSelect = (chatId: string, otherName: string) => {
+  const handleChatSelect = (chatId: string, otherName: string, otherAvatarUrl: string | null) => {
     setSelectedChatId(chatId);
     setSelectedOtherName(otherName);
+    setSelectedOtherAvatarUrl(otherAvatarUrl);
     if (isMobile) setIsSidebarOpen(false);
   };
 
@@ -30,7 +40,10 @@ export default function ChatLayout() {
       {/* Список чатов */}
       <div className={chatLayout.sidebar(isSidebarOpen)}>
         <div className={chatLayout.sidebarHeader}>
-          <h1 className="text-xl font-bold text-blue-400 truncate">ZdrasteChat</h1>
+          <div className={chatLayout.brand}>
+            <AvatarPicker user={currentUser} onUserChange={setCurrentUser} />
+            <h1 className="text-xl font-bold text-blue-400 truncate">ZdrasteChat</h1>
+          </div>
           <IconButton
             onClick={handleLogout}
             label="Выйти"
@@ -54,6 +67,7 @@ export default function ChatLayout() {
           <ChatWindow 
             chatId={selectedChatId} 
             otherName={selectedOtherName}
+            otherAvatarUrl={selectedOtherAvatarUrl}
             isSidebarOpen={isSidebarOpen}
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
