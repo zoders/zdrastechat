@@ -1,5 +1,6 @@
 import { chatWindow } from '../../styles/ui';
 import type { Message } from '../../types/chat';
+import { formatMessageTimestamp } from '../../utils/formatMessageTimestamp';
 
 interface MessageBubbleProps {
   message: Message;
@@ -12,7 +13,7 @@ export default function MessageBubble({ message, isOwn }: MessageBubbleProps) {
       <div className={chatWindow.messageBubble(isOwn)}>
         <div>{message.text}</div>
         <div className="text-[10px] opacity-70 mt-1 text-right">
-          {new Date(message.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+          {formatMessageTimestamp(message.timestamp)}
         </div>
       </div>
     </div>
