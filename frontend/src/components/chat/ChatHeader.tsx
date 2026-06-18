@@ -34,7 +34,7 @@ export default function ChatHeader({
         title={desktopLabel}
         className="hidden md:flex text-lg"
       >
-        {isSidebarOpen ? '📕' : '📖'}
+        {isSidebarOpen ? '⬅️' : '➡️'}
       </IconButton>
 
       <div className={chatWindow.user}>

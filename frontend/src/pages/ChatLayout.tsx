@@ -49,9 +49,9 @@ export default function ChatLayout() {
             label="Выйти"
             title="Выйти"
             variant="subtle"
-            className="text-sm px-3"
+            className="text-sm px-4"
           >
-            🚪
+            Выйти
           </IconButton>
         </div>
 
