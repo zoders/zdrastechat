@@ -3,8 +3,10 @@ import { useRef, useState } from 'react';
 import { deleteAvatar, uploadAvatar } from '../../api/users';
 import type { UserProfile } from '../../types/user';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import Avatar from '../ui/Avatar';
 import IconButton from '../ui/IconButton';
+import ImageViewer from '../ui/ImageViewer';
 
 interface AvatarPickerProps {
   user: UserProfile | null;
@@ -15,6 +17,8 @@ export default function AvatarPicker({ user, onUserChange }: AvatarPickerProps) 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  const avatarUrl = resolveMediaUrl(user?.avatar_url);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -55,15 +59,32 @@ export default function AvatarPicker({ user, onUserChange }: AvatarPickerProps) 
           type="button"
           onClick={() => {
             setError('');
-            inputRef.current?.click();
+            if (avatarUrl) {
+              setViewerSrc(avatarUrl);
+            } else {
+              inputRef.current?.click();
+            }
           }}
           className="rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
           aria-label="Сменить аватарку"
           title="Сменить аватарку"
           disabled={isSaving}
         >
-          <Avatar src={user?.avatar_url} label="Моя аватарка" />
+          <Avatar src={avatarUrl} label="Моя аватарка" />
         </button>
+        <IconButton
+          onClick={() => {
+            setError('');
+            inputRef.current?.click();
+          }}
+          label="Выбрать аватарку"
+          title="Выбрать аватарку"
+          variant="subtle"
+          className="text-xs"
+          disabled={isSaving}
+        >
+          🖼️
+        </IconButton>
         {user?.avatar_url && (
           <IconButton
             onClick={handleDelete}
@@ -94,6 +115,11 @@ export default function AvatarPicker({ user, onUserChange }: AvatarPickerProps) 
         accept="image/*"
         className="hidden"
         onChange={handleFileChange}
+      />
+      <ImageViewer
+        src={viewerSrc}
+        alt="Моя аватарка"
+        onClose={() => setViewerSrc(null)}
       />
     </div>
   );

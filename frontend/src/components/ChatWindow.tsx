@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
+import { sendChatPhoto } from '../api/chats';
 import { WS_URL, USE_WEBSOCKET } from '../config';
 import ChatHeader from './chat/ChatHeader';
 import MessageBubble from './chat/MessageBubble';
 import MessageComposer from './chat/MessageComposer';
+import ImageViewer from './ui/ImageViewer';
 import { chatWindow } from '../styles/ui';
 import type { Message, MessagesPage } from '../types/chat';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export default function ChatWindow({
   chatId,
@@ -26,6 +29,7 @@ export default function ChatWindow({
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [isHistoryStartVisible, setIsHistoryStartVisible] = useState(false);
+  const [viewerImage, setViewerImage] = useState<{ src: string; alt: string } | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -173,6 +177,25 @@ export default function ChatWindow({
     setNewMessage('');
   };
 
+  const sendPhoto = async (file: File) => {
+    try {
+      const message = await sendChatPhoto(chatId, file);
+      const socket = socketRef.current;
+
+      if (!USE_WEBSOCKET || socket?.readyState !== WebSocket.OPEN) {
+        setMessages((prev) => {
+          const nextMessages = mergeMessages(prev, [message], 'append');
+          rememberOldestMessage(nextMessages);
+          scrollBehaviorRef.current = 'smooth';
+          shouldScrollToBottomRef.current = true;
+          return nextMessages;
+        });
+      }
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Не удалось отправить фото'));
+    }
+  };
+
   useEffect(() => {
     if (!shouldScrollToBottomRef.current) return;
     shouldScrollToBottomRef.current = false;
@@ -186,6 +209,7 @@ export default function ChatWindow({
         otherAvatarUrl={otherAvatarUrl}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
+        onAvatarOpen={(src, alt) => setViewerImage({ src, alt })}
       />
 
       {/* Сообщения */}
@@ -208,6 +232,7 @@ export default function ChatWindow({
             key={msg.id}
             message={msg}
             isOwn={msg.sender_id === currentUserId}
+            onImageOpen={(src, alt) => setViewerImage({ src, alt })}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -217,6 +242,12 @@ export default function ChatWindow({
         value={newMessage}
         onChange={setNewMessage}
         onSend={sendMessage}
+        onPhotoSelect={sendPhoto}
+      />
+      <ImageViewer
+        src={viewerImage?.src ?? null}
+        alt={viewerImage?.alt ?? 'Фото'}
+        onClose={() => setViewerImage(null)}
       />
     </div>
   );

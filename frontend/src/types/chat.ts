@@ -4,6 +4,8 @@ export interface Message {
   id: string;
   sender_id: string;
   text: string;
+  attachment_url: string | null;
+  attachment_type: string | null;
   timestamp: string;
   is_read: boolean;
 }

@@ -6,10 +6,12 @@ from apps.users.serializers import UserSerializer
 class MessageSerializer(serializers.ModelSerializer):
     text = serializers.SerializerMethodField()
     sender_id = serializers.SerializerMethodField()
+    attachment_url = serializers.SerializerMethodField()
+    attachment_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ["id", "sender_id", "text", "timestamp", "is_read"]
+        fields = ["id", "sender_id", "text", "attachment_url", "attachment_type", "timestamp", "is_read"]
         read_only_fields = ["id", "timestamp", "is_read"]
 
     def get_text(self, obj):
@@ -17,6 +19,17 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_sender_id(self, obj):
         return str(obj.sender.id)
+
+    def get_attachment_url(self, obj):
+        if not obj.attachment or not obj.attachment.file:
+            return None
+
+        request = self.context.get("request")
+        url = obj.attachment.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_attachment_type(self, obj):
+        return obj.attachment.file_type if obj.attachment else None
 
 
 class ChatSerializer(serializers.ModelSerializer):

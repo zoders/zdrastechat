@@ -4,9 +4,11 @@ from django.db import models
 
 class FileType:
     AVATAR = "avatar"
+    MESSAGE_IMAGE = "message_image"
 
     CHOICES = [
         (AVATAR, "Avatar"),
+        (MESSAGE_IMAGE, "Message image"),
     ]
 
 

@@ -130,7 +130,7 @@ export default function ChatList({
                 <div className="font-semibold truncate">@{otherName}</div>
                 {chat.last_message && (
                   <div className="text-xs text-gray-400 mt-1 truncate">
-                    {chat.last_message.text}
+                    {chat.last_message.attachment_url ? 'Фото' : chat.last_message.text}
                   </div>
                 )}
               </div>

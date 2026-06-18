@@ -1,5 +1,5 @@
 from django.db import models
-from apps.core.models import BaseModel
+from apps.core.models import BaseModel, UploadedFile
 from apps.users.models import User
 from apps.core.encryption import encrypt_message, decrypt_message
 
@@ -30,6 +30,13 @@ class Message(BaseModel):
         related_name="sent_messages"
     )
     encrypted_text = models.TextField()
+    attachment = models.ForeignKey(
+        UploadedFile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="messages",
+    )
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
 

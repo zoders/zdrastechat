@@ -1,7 +1,10 @@
 from rest_framework import generics, status, serializers
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.utils.dateparse import parse_datetime
 from django.shortcuts import get_object_or_404
+from apps.core.models import FileType, UploadedFile
 from .models import Chat, Message, User
 from .serializers import ChatSerializer, MessageSerializer
 from channels.layers import get_channel_layer
@@ -112,3 +115,56 @@ class SendMessageView(generics.CreateAPIView):
             )
 
         return message
+
+
+def broadcast_message(chat, message):
+    channel_layer = get_channel_layer()
+    serialized_message = MessageSerializer(message).data
+
+    async_to_sync(channel_layer.group_send)(
+        f"chat_{chat.id}",
+        {
+            "type": "chat_message",
+            "message": serialized_message,
+        }
+    )
+
+    for participant in chat.participants.all():
+        async_to_sync(channel_layer.group_send)(
+            f"user_{participant.id}",
+            {
+                "type": "chat_updated",
+                "chat_id": str(chat.id),
+                "message": serialized_message,
+            }
+        )
+
+
+class SendPhotoView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, chat_id):
+        chat = get_object_or_404(Chat, id=chat_id, participants=request.user)
+        image = request.data.get("image")
+
+        if not image:
+            raise serializers.ValidationError({"image": ["Выберите фото"]})
+
+        content_type = getattr(image, "content_type", "")
+        if content_type and not content_type.startswith("image/"):
+            raise serializers.ValidationError({"image": ["Можно отправлять только изображения"]})
+
+        uploaded_file = UploadedFile.objects.create(
+            file=image,
+            file_type=FileType.MESSAGE_IMAGE,
+        )
+
+        message = Message(chat=chat, sender=request.user, encrypted_text="", attachment=uploaded_file)
+        message.set_text("")
+        message.save()
+        broadcast_message(chat, message)
+
+        return Response(
+            MessageSerializer(message, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
